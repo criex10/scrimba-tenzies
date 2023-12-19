@@ -1,95 +1,80 @@
-import Image from 'next/image'
-import styles from './page.module.css'
+'use client'
+
+import React from "react";
+import Confetti from "react-confetti";
+import dynamic from 'next/dynamic'
+import useWindowSize from 'react-use/lib/useWindowSize';
+
+const Die = dynamic(() => import('@/components/Die'), { ssr: false })
 
 export default function Home() {
-  return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    const [dice, setDice] = React.useState(allNewDice());
+    const [tenzies, setTenzies] = React.useState(false);
+    const {width, height} = useWindowSize();
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+    React.useEffect(() => {
+        const firstValue = dice[0].value;
+        const allHeld = dice.every(die => die.held);
+        const allSameNumber = dice.every(die => die.value === firstValue);
+        if (allHeld && allSameNumber) {
+            setTenzies(true);
+        }
+    }, [dice]);
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
+    function randomDieValue() {
+        return Math.ceil(Math.random() * 6);
+    }
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
+    function allNewDice() {
+        const newArray = [];
+        for (let i = 0; i < 10; i++) {
+            const newDie = {
+                value: randomDieValue(),
+                held: false,
+                id: i + 1,
+            };
+            newArray.push(newDie);
+        }
+        return newArray;
+    }
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
+    function rollUnheldDice() {
+        if (!tenzies) {
+            setDice((oldDice) => oldDice.map((die, i) =>
+                die.held ?
+                    die :
+                    {value: randomDieValue(), held: false, id: i + 1},
+            ));
+        } else {
+            setDice(allNewDice());
+            setTenzies(false);
+        }
+    }
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+    function holdDice(id: number) {
+        setDice(prevDice => prevDice.map(die => {
+            return die.id === id ?
+                {...die, held: !die.held} :
+                die;
+        }));
+    }
+
+    const diceElements = dice.map((die) => (
+        <Die key={die.id} {...die}
+             holdHandler={() => holdDice(die.id)} />
+    ));
+
+    return (
+        <main>
+            {tenzies && <Confetti width={width}
+                                  height={height} />}
+            <h1>Tenzies</h1>
+            <p>Roll until all dice are the same. Click each die to freeze it at its current value between rolls.</p>
+            <div className="die-container">{diceElements}</div>
+            <button className="roll-dice"
+                    onClick={rollUnheldDice}>
+                {tenzies ? "Reset Game" : "Roll"}
+            </button>
+        </main>
+    );
 }
